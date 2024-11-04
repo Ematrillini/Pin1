@@ -1,0 +1,51 @@
+pipeline {
+    environment {
+        IMAGEN = "ematrillini/prueba1"  // Nombre del repositorio en DockerHub
+        DOCKER_CREDENTIALS_ID = 'Newtriunf'  // Credenciales creadas en Jenkins
+    }
+    agent any
+    stages {
+        stage('Clone') {
+            steps {
+                script {
+                    git branch: "main", url: 'https://github.com/josedom24/jenkins_docker.git'
+                }
+            }
+        }
+        stage('Build') {
+            steps {
+                script {
+                    newApp = docker.build "${env.IMAGEN}:${env.BUILD_NUMBER}"
+                }
+            }
+        }
+
+        stage('Test') {
+            steps {
+                script {
+                    docker.image("${env.IMAGEN}:${env.BUILD_NUMBER}").inside('-u root') {
+                        sh 'apache2ctl -v'  // **Cambia este comando según sea necesario**
+                    }
+                }
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                script {
+                    docker.withRegistry('', env.DOCKER_CREDENTIALS_ID) {
+                        newApp.push()
+                    }
+                }
+            }
+        }
+
+        stage('Clean Up') {
+            steps {
+                script {
+                    sh "docker rmi ${env.IMAGEN}:${env.BUILD_NUMBER}"
+                }
+            }
+        }
+    }
+}
